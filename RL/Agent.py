@@ -1,19 +1,19 @@
+import torch
+
 class PPOMemory:
     def __init__(self, batch_size):
-        self.states = []
-        self.probs = []
-        self.vals = []
-        self.actions = []
-        self.rewards = []
-        self.dones = []
+        self.states = [] # store 4, 128, 128, 32 tensor
+        self.probs = [] # store tuple
+        self.vals = [] # store int
+        self.actions = [] # store tuple
+        self.rewards = [] # store int
 
         self.batch_size = batch_size
 
     def generate_batches(self):
         n_states = len(self.states)
-        batch_start = np.arange(0, n_states, self.batch_size)
-        indices = np.arange(n_states, dtype=np.int64)
-        np.random.shuffle(indices)
+        batch_start = torch.arange(0, n_states, self.batch_size)
+        indices = torch.randperm(n_states)
         batches = [indices[i:i+self.batch_size] for i in batch_start]
 
         return np.array(self.states),\

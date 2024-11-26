@@ -38,7 +38,7 @@ def get_both(batch):
     hb = batch['hb']
     return torch.cat([t2, hb], dim=1)
     
-functions = [get_both, get_hb, get_t2]
+functions = [get_both, get_hb, get_t2, get_t2]
 def train_seg_net(
         seg_model, 
         seg_loader,

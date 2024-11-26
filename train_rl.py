@@ -18,21 +18,23 @@ seg_model = SwinUNETR(
     use_v2=True,
 )
 seg_model.load_state_dict(torch.load("/home/xiangcen/RLModality/models/segmentation.ptm", map_location=device, weights_only=True))
-weak_model = WeakModel()
-weak_model.load_state_dict(torch.load("/home/xiangcen/RLModality/models/weak.ptm", map_location=device, weights_only=True))
-weak_model.eval()
 seg_model.eval()
 
-env = Env("/home/xiangcen/RLModality/picai_h5/39.h5", seg_model, weak_model)
+env = Env("/home/xiangcen/RLModality/picai_h5/39.h5", seg_model)
 
 
 
 obs = env.reset()
 
-while True:
+for _ in range(300):
 
-    action = (0, 0)
-    next_obs, reward = env.step(action)
+    action = (
+        torch.randint(0, 3, size=(1, )).item(), 
+        torch.randint(0, 3, size=(1, )).item(),
+        torch.randint(0, 8, size=(1, )).item(),
+        torch.randint(0, 4, size=(1, )).item(),
+    )
+    next_obs, reward = env.step_train(action)
 
     print(reward)
-    
+print(env.get_all_accuracy())
