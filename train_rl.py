@@ -1,8 +1,20 @@
 from RL.Env import Env
+from Training import data_spilt, ReadH5d, create_data_loader
+from Training import train_seg_net, test_seg_net
+from monai.transforms import *
+from monai.networks.nets import DynUNet, SwinUNETR
+from monai.losses import DiceFocalLoss
 import torch
-from Training.NetWorks import WeakModel
-from monai.networks.nets import SwinUNETR
+batch_size=6
+num_epoch=1000
+device = 'cuda:0'
 
+
+seg_list, rl_list, holdout_list = data_spilt('/home/xiangcen/RLModality/picai_h5', 110, 100, 10)
+seg_list_promise, rl_list_promise, holdout_list_promise = data_spilt('/home/xiangcen/RLModality/promise_h5', 231, 180, 20)
+
+_dir = rl_list[34]
+# _dir = rl_list_promise[4]
 
 device = 'cuda:0'
 seg_model = SwinUNETR(
@@ -20,7 +32,8 @@ seg_model = SwinUNETR(
 seg_model.load_state_dict(torch.load("/home/xiangcen/RLModality/models/segmentation.ptm", map_location=device, weights_only=True))
 seg_model.eval()
 
-env = Env("/home/xiangcen/RLModality/picai_h5/39.h5", seg_model)
+print(_dir)
+env = Env(_dir, seg_model)
 
 
 

@@ -32,9 +32,9 @@ model = SwinUNETR(
     out_channels = 1,
     depths = (2, 2, 2, 2),
     num_heads = (3, 6, 12, 24),
-    # drop_rate = 0.1,
-    # attn_drop_rate = 0.1,
-    # dropout_path_rate = 0.1,
+    drop_rate = 0.1,
+    attn_drop_rate = 0.1,
+    dropout_path_rate = 0.1,
     downsample="mergingv2",
     use_v2=True,
 )
@@ -43,7 +43,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
 
 loss_list = []
-for i in range(800):
+for i in range(21):
     train_loss = train_seg_net(model, train_loader, optimizer, DiceFocalLoss(sigmoid=True), device=device)
     both_acc, t2_acc, hb_acc = test_seg_net(model, inference_loader, device=device)
 

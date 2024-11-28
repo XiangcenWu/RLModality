@@ -24,7 +24,6 @@ class Env():
         
 
         self.current_segmentation = torch.zeros(size=self.shape)
-        self.current_accuracy = 0.
         
         
         self.index_128 = [slice(0, 43), slice(43, 86), slice(86, 128)]
@@ -64,15 +63,14 @@ class Env():
         self.update_current_seg(action)
         
         self.current_accuracy = self.calculate_current_accuracy()
-        reward = self.current_accuracy - last_accuracy
+        reward = self.current_accuracy
 
         obs = torch.cat([
             self.t2,
             self.hb,
             self.current_segmentation,
         ])
-        if reward < 0:
-            reward *= 5
+
         return obs, reward
     
     
@@ -95,10 +93,7 @@ class Env():
     
     
     def get_all_accuracy(self):
-        # self.both_seg = self.get_inference_output(seg_model, torch.cat([self.t2, self.hb]))
-        # self.t2_seg = self.get_inference_output(seg_model, torch.cat([self.t2, torch.zeros_like(self.hb)]))
-        # self.hb_seg = self.get_inference_output(seg_model, torch.cat([torch.zeros_like(self.t2), self.hb]))
-        
+
         
         both = dice_coefficient(self.both_seg, self.gt, post=False).item()
         t2 = dice_coefficient(self.t2_seg, self.gt, post=False).item()
@@ -106,6 +101,14 @@ class Env():
         
         
         return both, t2, hb
+    
+    def get_best_accuracy(self):
+        both, t2, hb = self.get_all_accuracy()
+        return torch.tensor([both, t2, hb]).max()
+    
+    def get_worse_accuracy(self):
+        both, t2, hb = self.get_all_accuracy()
+        return torch.tensor([both, t2, hb]).min()
         
     
     
