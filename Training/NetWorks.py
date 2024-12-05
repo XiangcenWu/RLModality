@@ -4,7 +4,7 @@ from monai.networks.nets import ViT
 
 
 
-class WeakModel(nn.Module):
+class RewardModel(nn.Module):
     
     
     def __init__(self):
@@ -30,7 +30,7 @@ class WeakModel(nn.Module):
     
     def forward(self, x):
         x = self.vit(x)[0]
-        return torch.sigmoid(x)
+        return x
         
     
     
