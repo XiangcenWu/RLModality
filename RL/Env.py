@@ -24,20 +24,29 @@ class Env():
         
 
         self.current_segmentation = torch.zeros(size=self.shape)
-        self.last_action = None
+        self.last_action = torch.zeros(self.shape)
         
         
         self.mean_dice = self.get_mean_accuracy()
         self.worst_dice = self.get_worse_accuracy()
         self.best_dice = self.get_best_accuracy()
         
+      
+        
         self.max_length = eps_length
         self.current_length = 0
         
         
         self.index_128 = [slice(0, 43), slice(43, 86), slice(86, 128)]
-        self.index_32 = [slice(0, 8), slice(8, 16), slice(16, 24), slice(24, 32)]
+        self.index_32 = [slice(0, 4), slice(4, 8), slice(8, 12), slice(12, 16), slice(16, 20), slice(20, 24), slice(24, 28), slice(28, 32)]
+        # self.index_32 = [slice(0, 8), slice(8, 16), slice(16, 24), slice(24, 32)]
+        
+        self.current_accuracy = 0.
+        self.last_current_accuracy = 0.
 
+    @property
+    def all_zero(self):
+        return all(num == 0 for num in (self.mean_dice, self.worst_dice, self.best_dice))
 
     def get_inference_output(self, seg_model, input_tensor):
         with torch.no_grad():
@@ -48,62 +57,47 @@ class Env():
 
 
     def reset(self):
-        self.current_length += 1
         return torch.cat([
             self.t2,
             self.hb,
             self.current_segmentation,
-            # torch.zeros(size=self.shape)
         ])
     
     
 
     def step_train(self, action):
         self.update_current_seg(action)
-        # reward = 0.
-        
         self.current_accuracy = self.calculate_current_accuracy()
-        reward = self.current_accuracy - self.mean_dice
-        # if self.current_accuracy > self.best_dice:
-        #     reward = 2
 
-
-        if self.current_length == self.max_length:
-            self.current_accuracy = self.calculate_current_accuracy()
-            if self.current_accuracy > self.best_dice:
-                reward = 10.
-            elif self.current_accuracy > self.mean_dice:
-                reward = 5.
-            # elif self.current_accuracy > self.worst_dice:
-            #     reward = 2.5
-            else:
-                reward = -10
-        self.current_length += 1
+        reward = self.current_accuracy - self.last_current_accuracy
+        self.last_current_accuracy = self.current_accuracy
 
 
         obs = torch.cat([
             self.t2,
             self.hb,
             self.current_segmentation,
-            # self.get_current_location(action)
         ])
+        
 
         return obs, reward
-    
-    
+
+
     def update_current_seg(self, action):
-        width, heigth, depth, modality = action
-        w = self.index_128[width]
-        h = self.index_128[heigth]
-        d = self.index_32[depth]
-        if modality == 0: # both
-            self.current_segmentation[:, w, h, d] = self.both_seg[:, w, h, d]
-        elif modality == 1: # t2
-            self.current_segmentation[:, w, h, d] = self.t2_seg[:, w, h, d]
-        elif modality == 2: # hb
-            self.current_segmentation[:, w, h, d] = self.hb_seg[:, w, h, d]
+
+        if action <= 7: # both
+            d = self.index_32[action]
+            self.current_segmentation[:, :, :, d] = self.both_seg[:, :, :, d]
+        elif action > 7 and action <= 15: # t2
+            d = self.index_32[action - 8]
+            self.current_segmentation[:, :, :, d] = self.t2_seg[:, :, :, d]
+        elif action > 15 and action <= 23: # t2: # hb
+            d = self.index_32[action - 16]
+            self.current_segmentation[:, :, :, d] = self.hb_seg[:, :, :, d]
         else: # nothing
-            self.current_segmentation[:, w, h, d] = 0.
+            d = self.index_32[action - 24]
+            self.current_segmentation[:, :, :, d] = 0.
+
 
 
     def calculate_current_accuracy(self): #
@@ -136,10 +130,11 @@ class Env():
     
     def get_rand_state_accuracy(self, loop_per_patient):
         
+        if random.random() < 0.5:
+            self.current_segmentation = random.choice([self.both_seg, self.t2_seg, self.hb_seg])
+        
         for _ in range(loop_per_patient):
             action = (
-                        torch.randint(0, 3, size=(1, )).item(),
-                        torch.randint(0, 3, size=(1, )).item(),
                         torch.randint(0, 4, size=(1, )).item(),
                         torch.randint(0, 4, size=(1, )).item()
                     )
@@ -155,5 +150,41 @@ class Env():
         
     def clear_current_segmentation(self):
         self.current_segmentation = torch.zeros(size=self.shape)
+        
+        
+        
+        
+    def get_both_state_accuracy(self):
+        
+        return torch.cat([
+            self.t2,
+            self.hb,
+            self.both_seg,
+        ]), dice_coefficient(self.both_seg, self.gt, post=False).item()
 
+
+    def get_t2_state_accuracy(self):
+        
+        return torch.cat([
+            self.t2,
+            self.hb,
+            self.t2_seg,
+        ]), dice_coefficient(self.t2_seg, self.gt, post=False).item()
+        
+    def get_hb_state_accuracy(self):
+        
+        return torch.cat([
+            self.t2,
+            self.hb,
+            self.hb_seg,
+        ]), dice_coefficient(self.hb_seg, self.gt, post=False).item()
+        
+    def get_null_state_accuracy(self):
+
+        
+        return torch.cat([
+            self.t2,
+            self.hb,
+            torch.zeros_like(self.t2)
+        ]), 0
 

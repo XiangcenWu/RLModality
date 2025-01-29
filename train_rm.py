@@ -1,11 +1,13 @@
-from Training import data_spilt, ReadH5d, create_data_loader
-from Training import train_reward_model, test_reward_model
+from Training import data_spilt
+from Training.training_helper_rm import train_reward_model, test_reward_model
 from Training.NetWorks import RewardModel
-from monai.transforms import *
-from monai.networks.nets import DynUNet, SwinUNETR
-from monai.losses import DiceFocalLoss
+from monai.networks.nets import SwinUNETR
 import torch
-import random
+
+from monai.data import (
+    Dataset,
+    DataLoader,
+)
 
 
 batch_size=6
@@ -17,6 +19,10 @@ seg_list_promise, rl_list_promise, holdout_list_promise = data_spilt('/home/xian
 
 train_list = rl_list + rl_list_promise
 test_list = holdout_list + holdout_list_promise
+
+
+train_loader = DataLoader(Dataset(train_list), batch_size=1, shuffle=True, drop_last=True)
+test_loader = DataLoader(Dataset(test_list), batch_size=1, shuffle=True, drop_last=False)
 
 
 seg_model = SwinUNETR(
@@ -37,22 +43,25 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
 
 
-num_train_loop = 9999
-num_train_patient = 4
-num_test_patient = 4
-for i in range(num_train_loop):
-    train_dir_list = random.sample(train_list, num_train_patient)
-    test_dir_list = random.sample(test_list, num_test_patient)
-    train_loss = train_reward_model(model, seg_model, train_dir_list, optimizer, torch.nn.BCELoss(), device=device)
-    test_acc = test_reward_model(model, seg_model, test_dir_list, device=device)
+epoch = 99999
+
+
+loss_list = []
+for i in range(epoch):
+
+    train_loss = train_reward_model(model, seg_model, train_loader, optimizer, device=device)
+    test_loss = test_reward_model(model, seg_model, test_loader, device=device)
+    print(train_loss, test_loss)
 
 
 
-    print(f'epoch {i}, loss: {train_loss}, acc: {test_acc}')
+    # print(f'epoch {i}, loss: {train_loss}, acc: {test_acc}')
     
     
-    loss_list.append(torch.tensor([train_loss, test_acc]))
+    loss_list.append(torch.tensor([train_loss, test_loss]))
     loss_tensor = torch.stack(loss_list)
-    torch.save(loss_tensor, '/home/xiangcen/RLModality/models/loss/train_loss_weak.pt')
-    torch.save(model.state_dict(), '/home/xiangcen/RLModality/models/weak.ptm')
-    print('model saved!')
+    torch.save(loss_tensor, '/home/xiangcen/RLModality/models/loss/train_loss_rm.pt')
+    
+    if test_loss <= loss_tensor[:, 1].min():
+        torch.save(model.state_dict(), '/home/xiangcen/RLModality/models/rm.ptm')
+        print('model saved!')

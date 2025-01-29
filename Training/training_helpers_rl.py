@@ -10,14 +10,12 @@ def test_agent(env, agent, num_steps, device='cpu', random=False):
         with torch.no_grad():
             if random:
                 action = (
-                    torch.randint(0, 3, size=(1, )).item(),
-                    torch.randint(0, 3, size=(1, )).item(),
                     torch.randint(0, 4, size=(1, )).item(),
                     torch.randint(0, 4, size=(1, )).item()
                 )
             else:
                 agent.actor.eval()
-                action, probs, value = agent.choose_action(obs, noise=False)
+                action, probs, value = agent.choose_action(obs, noise=0)
             print(action)
             next_obs, reward= env.step_train(action)
             

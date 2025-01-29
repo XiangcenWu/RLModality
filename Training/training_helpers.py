@@ -2,8 +2,6 @@ import torch
 import random
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import RL.Env
-from itertools import combinations
 
 def post_process(x: torch.tensor, th: int=0.5):
     return (x > th).to(float)
@@ -111,165 +109,124 @@ def test_seg_net(
 
 
 
-def generate_rand_index(max: int = 32):
-    num_of_generations = torch.randint(1, 33, (1, )).item()  # Random number of generations between 1 and 32
-    
-    # Generate random indices without replacement
-    _indexs = torch.randperm(max)  # Generate random permutation of indices [0, 1, 2, ..., max-1]
-    
-    # Select num_of_generations number of random indices
-    sampled_indexes = _indexs[:num_of_generations]
-    
-    # Rank the sampled indexes (sorting them in ascending order)
-    # sampled_indexes = torch.sort(sampled_indexes)[0]  # Get the indices that would sort the tensor
-    
-    return sampled_indexes
+# def reward_model_loss(good, bad):
+#     difference = torch.sigmoid(good - bad)
+#     return torch.log(difference).mean()
 
 
 
-def sort_state_accuracy(state_list, accuracy_list):
-        # Combine the lists into pairs
-    paired_list = zip(state_list, accuracy_list)
-    ranked_list = sorted(paired_list, key=lambda x: x[1], reverse=True)
-    return ranked_list # a list of tuple
+# def sort_state_accuracy(state_list, accuracy_list):
+#         # Combine the lists into pairs
+#     paired_list = zip(state_list, accuracy_list)
+#     ranked_list = sorted(paired_list, key=lambda x: x[1], reverse=True)
+#     return ranked_list # a list of tuple
 
 
-def get_rm_list(state_list, accuracy_list):
-    ranked_list = sort_state_accuracy(state_list, accuracy_list) # a list of tuple [(state, accuracy), ...]
-    all_combinations = list(combinations(ranked_list, r=2)) #[((state, accuracy), (state, accuracy))
-                                                            #                                      ]
+# def get_rm_list(state_list, accuracy_list):
+#     ranked_list = sort_state_accuracy(state_list, accuracy_list) # a list of tuple [(state, accuracy), ...]
+#     all_combinations = list(combinations(ranked_list, r=2)) #[((state, accuracy), (state, accuracy))
+#                                                             #                                      ]
     
     
-    return [state[0][0] for state in all_combinations], \
-        [state[1][0] for state in all_combinations]
+#     return [state[0][0] for state in all_combinations], \
+#         [state[1][0] for state in all_combinations]
 
 
 
-def generate_rm_data(patient_dir_list, sample_per_patient, loop_per_patient, seg_model, eps_length):
+# def generate_rm_data(patient_dir_list, sample_per_patient, loop_per_patient, seg_model, eps_length=999):
     
-    good_list, bad_list = [], []
-    for patient in patient_dir_list:
-        state_list, accuracy_list = [], []
-        env = RL.Env.Env(patient, seg_model, eps_length)
-        for _ in range(sample_per_patient):
-            state, accuracy = env.get_rand_state_accuracy(loop_per_patient)
-            if accuracy not in accuracy_list:
-                state_list.append(state)
-                accuracy_list.append(accuracy_list)
+#     good_list, bad_list = [], []
+#     for patient in patient_dir_list:
+#         state_list, accuracy_list = [], []
+#         env = RL.Env.Env(patient, seg_model, eps_length)
+#         for _ in range(sample_per_patient):
+#             state, accuracy = env.get_rand_state_accuracy(loop_per_patient)
+#             if accuracy not in accuracy_list:
+#                 state_list.append(state)
+#                 accuracy_list.append(accuracy_list)
         
-        _good_list, _bad_list = get_rm_list(state_list, accuracy_list)
-        good_list += _good_list
-        bad_list += _bad_list
+#         _good_list, _bad_list = get_rm_list(state_list, accuracy_list)
+#         good_list += _good_list
+#         bad_list += _bad_list
         
-    return torch.stack(good_list), torch.stack(bad_list)
+#     return torch.stack(good_list), torch.stack(bad_list)
 
 
 
-def train_reward_model(
-    reward_model,
-    seg_model, 
-    train_dir_list,
-    weak_optimizer,
-    loss_function,
-    device='cpu',
-):
-    reward_model.train()
-    reward_model.to(device)
-    seg_model.eval()
-    seg_model.to(device)
+# def train_reward_model(
+#     reward_model,
+#     segmentation_model,
+#     train_loader,
+#     reward_model_optimizer,
+#     sample_per_patient = 4,
+#     loop_per_patient = 20,
+#     device='cpu',
+# ):
+#     reward_model.train()
+#     reward_model.to(device)
+
     
-    step = 0.
-    loss_a = 0.
-    for batch in train_dir_list:
+#     _loss = 0
+#     _step = 0
+#     for batch in train_loader:
+#         good_tensor, bad_tensor = generate_rm_data(
+#             batch,
+#             sample_per_patient,
+#             loop_per_patient,
+#             segmentation_model,
+#         )
+#         o_good = reward_model(good_tensor)
+#         o_bad = reward_model(bad_tensor)
+
+#         loss = reward_model_loss(o_good, o_bad)
+#         loss.backward()
+#         reward_model_optimizer.step()
+#         reward_model_optimizer.zero_grad()
         
-        if random.random() < 0.2: # implement all radiologist annotation
+#         _loss += loss.item()
+#         _step += 1
+#     return _loss/_step
+
+
+
+
+
+# def test_reward_model(
+#     reward_model,
+#     seg_model, 
+#     weak_loader,
+#     device='cpu',
+# ):
+#     reward_model.eval()
+#     reward_model.to(device)
+#     seg_model.eval()
+#     seg_model.to(device)
+    
+#     step = 0.
+#     difference_a = 0.
+#     for _ in range(30):
+#         for batch in weak_loader:
+#             # random generate index and mask the index
+#             index_to_mask = generate_rand_index()
+#             label = batch['gt'].to(device)
+#             label[..., index_to_mask] = 0
             
-            label = batch['gt']
-            both = get_both(batch)
-            img = torch.cat([both, label], dim=1).to(device)
-            
-            batch_size = img.shape[0]
-            label = torch.ones(size=(batch_size, 1)).to(device)
-            
-            output = reward_model(img.float())
-            loss = loss_function(output, label)
-            loss.backward()
-            weak_optimizer.step()
-            weak_optimizer.zero_grad()
-            
-            loss_a+= loss.item()
-            
-        else:
-            # random generate index and mask the index
-            index_to_mask = generate_rand_index()
-            label = batch['gt'].to(device)
-            label[..., index_to_mask] = 0
             
             
-            with torch.no_grad():
-                selected_function = random.choice(functions)
-                selected_modality = selected_function(batch).to(device)
-                output = seg_model(selected_modality)
-                output[..., index_to_mask] = 0 # mask the output as well
-                dice_score = dice_coef_batch(output, label).to(device)
+#             with torch.no_grad():
+#                 selected_function = random.choice(functions)
+#                 selected_modality = selected_function(batch).to(device)
+#                 output = seg_model(selected_modality)
+#                 output[..., index_to_mask] = 0 # mask the output as well
+#                 dice_score = dice_coef_batch(output, label).to(device)
                 
-            both = get_both(batch).to(device)
-            img = torch.cat([both, output], dim=1).to(device)
+#                 both = get_both(batch).to(device)
+#                 img = torch.cat([both, output], dim=1).to(device)
 
-        
-        
-        
-            output = reward_model(img)
-            loss = loss_function(output, dice_score)
-            loss.backward()
-            weak_optimizer.step()
-            weak_optimizer.zero_grad()
-            
-            loss_a+= loss.item()
+#                 output = reward_model(img)
+#                 difference_a += torch.abs(output - dice_score).mean().item()
 
-
-        step += 1.
-    loss_of_this_epoch = loss_a / step
-
-    return loss_of_this_epoch
-
-
-def test_reward_model(
-    reward_model,
-    seg_model, 
-    weak_loader,
-    device='cpu',
-):
-    reward_model.eval()
-    reward_model.to(device)
-    seg_model.eval()
-    seg_model.to(device)
-    
-    step = 0.
-    difference_a = 0.
-    for _ in range(30):
-        for batch in weak_loader:
-            # random generate index and mask the index
-            index_to_mask = generate_rand_index()
-            label = batch['gt'].to(device)
-            label[..., index_to_mask] = 0
-            
-            
-            
-            with torch.no_grad():
-                selected_function = random.choice(functions)
-                selected_modality = selected_function(batch).to(device)
-                output = seg_model(selected_modality)
-                output[..., index_to_mask] = 0 # mask the output as well
-                dice_score = dice_coef_batch(output, label).to(device)
-                
-                both = get_both(batch).to(device)
-                img = torch.cat([both, output], dim=1).to(device)
-
-                output = reward_model(img)
-                difference_a += torch.abs(output - dice_score).mean().item()
-
-            step+=1
-    return difference_a / step
+#             step+=1
+#     return difference_a / step
 
 
