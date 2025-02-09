@@ -10,7 +10,7 @@ import torch
 
 class Env():
 
-    def __init__(self, patient: str, seg_model, eps_length):
+    def __init__(self, patient: str, seg_model):
         patient = readh5(patient)
 
         self.t2 = patient['t2']
@@ -31,10 +31,8 @@ class Env():
         self.worst_dice = self.get_worse_accuracy()
         self.best_dice = self.get_best_accuracy()
         
-      
-        
-        self.max_length = eps_length
-        self.current_length = 0
+
+
         
         
         self.index_128 = [slice(0, 43), slice(43, 86), slice(86, 128)]
@@ -71,7 +69,13 @@ class Env():
 
         reward = self.current_accuracy - self.last_current_accuracy
         self.last_current_accuracy = self.current_accuracy
-
+        
+        
+        if reward > 0:
+            reward = 1.
+        else:
+            reward = 0.
+        
 
         obs = torch.cat([
             self.t2,
@@ -84,6 +88,7 @@ class Env():
 
 
     def update_current_seg(self, action):
+
 
         if action <= 7: # both
             d = self.index_32[action]

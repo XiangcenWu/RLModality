@@ -10,8 +10,6 @@ import torch
 import random
 
 
-batch_size=6
-num_epoch=1000
 
 
 
@@ -40,54 +38,56 @@ seg_model.load_state_dict(torch.load("/home/xiangcen/RLModality/models/segmentat
 seg_model.eval()
 
 
-eps_length = 10
-learn_length = 10
+
+step_per_patient = 60
 batch_size = 10
 n_epochs = 5
 
 
-agent = Agent(gamma = 0.88, alpha=0.0001, gae_lambda=0.85, policy_clip=0.2, batch_size=batch_size, n_epochs=n_epochs, device=device)
+
+
+agent = Agent(gamma = 0., batch_size=batch_size, n_epochs=n_epochs, device=device)
+actor_optimizer = torch.optim.AdamW(agent.actor.parameters(), lr=0.0001)
 test_result_list = []
 
 train_list = rl_list
-test_list = holdout_list
+# train_list = ['./picai_h5/3.h5']
 
 
 
-print(len(train_list), len(test_list))
-for num_env in range(99999999): # loop over dataset (patients)
-    agent.memory.clear_memory()
-    train_dir = random.choice(train_list)
-    env = Env(train_dir, seg_model, eps_length)
-    if env.all_zero:
-        continue
-    obs = env.reset()
-    for _ in range(eps_length):
-        action, prob, val = agent.choose_action(obs.unsqueeze(0).to(device), noise=0.5)
-        next_obs, reward = env.step_train(action)
-        agent.remember(obs, action, prob, val, reward)
-        if (_ + 1) % learn_length == 0:
-            agent.learn()
-        obs = next_obs
-
-    # if (num_env + 1) % 50 == 0:
-
-
-    #     test_dice = torch.zeros(size=(10, ))
-
-    #     for test_dir in test_list:
-
-    #         test_dice += torch.tensor(test_agent(Env(test_dir, seg_model, eps_length), agent, 10, device=device))
-    #         # test_dice_random += torch.tensor(test_agent(Env(train_dir, seg_model, eps_length), None, 10, device=device, random=True))
-    #     current_test_tensor = test_dice/len(test_list)
-    #     print(f'Trained on {num_env}, test list {current_test_tensor.tolist()}')
-    #     test_result_list.append(current_test_tensor)
+for epoch in range(99999999): # loop over dataset (patients)
+    for train_dir in train_list:
+        env = Env(train_dir, seg_model)
+        if env.all_zero:
+            continue
+        obs = env.reset()
+        for _ in range(step_per_patient):
+            action, features= agent.choose_action(obs.unsqueeze(0).to(device), noise=0.3)
+            
+            # if torch.rand(size=(1, )).item() > 0.5:
+            #     action = 0
+            next_obs, reward = env.step_train(action)
+            agent.remember(obs, action, reward)
+            obs = next_obs
+        agent.learn_reinforce(actor_optimizer)
         
-    #     torch.save(torch.stack(test_result_list), '/home/xiangcen/RLModality/models/loss/agent_test.pt')
-    #     agent.save_models(
-    #         '/home/xiangcen/RLModality/models/rl_models/actor.ptm',
-    #         '/home/xiangcen/RLModality/models/rl_models/critic.ptm'
-    #     )
+        #     # test_dice = torch.zeros(size=(10, ))
+
+        #     # for test_dir in test_list:
+
+        #     #     test_dice += torch.tensor(test_agent(Env(test_dir, seg_model, eps_length), agent, 10, device=device))
+        #     #     # test_dice_random += torch.tensor(test_agent(Env(train_dir, seg_model, eps_length), None, 10, device=device, random=True))
+        #     # current_test_tensor = test_dice/len(test_list)
+        #     # print(f'Trained on {num_env}, test list {current_test_tensor.tolist()}')
+        #     # test_result_list.append(current_test_tensor)
+            
+        #     # torch.save(torch.stack(test_result_list), '/home/xiangcen/RLModality/models/loss/agent_test.pt')
+    
+    
+    if (epoch + 1) % 50 == 0:
+        agent.save_models(
+            f'/home/xiangcen/RLModality/models/rl_models/actor{epoch}.ptm'
+        )
 
 
 

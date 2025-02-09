@@ -1,24 +1,18 @@
 import torch
-from torch.distributions.categorical import Categorical
 
 
 
 
+x = torch.rand(size=(3, 5))
+print(x)
 
-x = torch.tensor([
-    [0.2, 0.8],
-    [0.6, 0.4]
-])
-
-
-
-c = Categorical(x)
+index = torch.tensor([0, 1, 1])
+selected = x.gather(dim=1, index=index.unsqueeze(1))
 
 
-action = torch.tensor([
-    [0],
-    [1]
-])
+
+print(selected)
 
 
-print(c.log_prob(action))
+import math
+print(math.log(0.0002533))

@@ -6,11 +6,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from RL.Env import Env
 
 
+# def reward_model_loss(good, bad):
+#     difference = torch.sigmoid(good - bad)
+#     return -torch.log(difference).mean()
+
 def reward_model_loss(good, bad):
-    difference = torch.sigmoid(good - bad)
-    return -torch.log(difference).mean()
-
-
+    return -torch.nn.functional.logsigmoid(good - bad).mean()
 
 def sort_state_accuracy(state_list, accuracy_list):
         # Combine the lists into pairs
@@ -92,36 +93,63 @@ def train_reward_model(
     reward_model.train()
     reward_model.to(device)
 
-    
+
     _loss = 0
     _step = 0
     for batch in train_loader:
+        _good_list, _bad_list = [], []
+        for patient in batch:
+            env = Env(patient, segmentation_model, 999, device)
+            
+            both_tensor, both_acc = env.get_both_state_accuracy()
+            t2_tensor, t2_acc = env.get_t2_state_accuracy()
+            hb_tensor, hb_acc = env.get_hb_state_accuracy()
+            
+            
+            
+            data = [
+                {"name": "both", "tensor": both_tensor, "accuracy": both_acc},
+                {"name": "t2", "tensor": t2_tensor, "accuracy": t2_acc},
+                {"name": "hb", "tensor": hb_tensor, "accuracy": hb_acc},
+            ]
+            
+            sorted_data = sorted(data, key=lambda x: x["accuracy"], reverse=True)
+            
 
-        good_tensor, bad_tensor = generate_rm_data_simple(
-            batch,
-            segmentation_model,
-        )
+            _good_list += [sorted_data[0]['tensor'], sorted_data[0]['tensor'], sorted_data[1]['tensor']]
+            _bad_list += [sorted_data[1]['tensor'], sorted_data[2]['tensor'], sorted_data[2]['tensor']]
+            
+            
+            # _good_list += [sorted_data[0]['tensor'], sorted_data[0]['tensor']]
+            # _bad_list += [sorted_data[1]['tensor'], sorted_data[2]['tensor']]
+        good_tensor = torch.stack(_good_list, dim=0).to(device).float()
+        bad_tensor = torch.stack(_bad_list, dim=0).to(device).float()
+        
 
 
+        good_pred = reward_model(good_tensor)
+        bad_pred = reward_model(bad_tensor)
+        
+        # print(good_pred.shape)
+        # [f"{num:.2f}" for num in good_pred.flatten().tolist()]
+        print('good: ', [f"{num:.2f}" for num in good_pred.flatten().tolist()])
+        print('bad:  ', [f"{num:.2f}" for num in bad_pred.flatten().tolist()])
+        
+        
+        loss = reward_model_loss(good_pred, bad_pred)
 
-        _good_tensor = good_tensor.to(device)
-        _bad_tensor = bad_tensor.to(device)
-    
-    
-    
-        o_good = reward_model(_good_tensor)
-        o_bad = reward_model(_bad_tensor)
-
-        loss = reward_model_loss(o_good, o_bad)
+        
         loss.backward()
-        reward_model_optimizer.step()
+        
         reward_model_optimizer.zero_grad()
         
-        _loss += loss.item()
-        _step += 1
-        
-        
-    return _loss/_step
+        _loss+=loss.item()
+        _step+=1
+
+        # 0 1
+        # 0 2
+        # 1 2
+    return _loss / _step
 
 
 

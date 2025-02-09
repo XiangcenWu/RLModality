@@ -22,8 +22,8 @@ train_list = rl_list + rl_list_promise
 test_list = holdout_list + holdout_list_promise
 
 
-eps_length = 10
-learn_length = 10
+
+learn_length = 30
 batch_size = 10
 n_epochs = 1
 
@@ -44,16 +44,18 @@ seg_model = SwinUNETR(
 seg_model.load_state_dict(torch.load("./models/segmentation.ptm", map_location=device, weights_only=True))
 seg_model.eval()
 
-agent = Agent(gamma = 0.98, alpha=0.0001, gae_lambda=0.95, policy_clip=0.2, batch_size=batch_size, n_epochs=n_epochs, device=device)
-agent.load_models('./models/rl_models/actor.ptm', './models/rl_models/critic.ptm')
+agent = Agent(gamma = 0.98, alpha=0.0001, batch_size=batch_size, n_epochs=n_epochs, device=device)
+agent.load_models('trained_model/actor.ptm', device=device)
 
 
 
-test_dir = rl_list[0]
-env = Env(test_dir, seg_model, eps_length)
+test_dir = './picai_h5/3.h5'
+test_dir = random.choice(holdout_list)
+# env = Env(test_dir, seg_model, learn_length)
 
 
-test_dice = torch.tensor(test_agent(Env(test_dir, seg_model, eps_length), agent, 10, device=device))
-test_dice_random = torch.tensor(test_agent(Env(test_dir, seg_model, eps_length), agent, 10, device=device, random=True))
+test_dice = torch.tensor(test_agent(Env(test_dir, seg_model, learn_length), agent, learn_length, device=device))
+# test_dice_random = torch.tensor(test_agent(Env(test_dir, seg_model), agent, 10, device=device, random=True))
 print(test_dice)
-print(test_dice_random)
+# print(test_dice_random)
+
