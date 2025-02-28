@@ -94,6 +94,15 @@ class Agent:
         # cdr = (cdr - cdr.min()) / (cdr.max() - cdr.min())
             
         return cdr
+    
+    def normlise_cdr(self, tensor):
+
+        tensor = torch.clamp(tensor, min=0)  # Clip negative values to zero
+        if tensor.max() > 0:  # Avoid division by zero
+            tensor = tensor / tensor.max()  # Normalize to [0,1]
+        return tensor
+
+        
 
 
     def learn_reinforce(self, optimizer):
@@ -104,6 +113,7 @@ class Agent:
             state_arr, action_arr, reward_arr, batches = \
                     self.memory.generate_batches()
             cdr_arr = self.calculate_cdr(reward_arr)
+            # cdr_arr = self.normlise_cdr(cdr_arr)
 
             action_arr = action_arr.to(self.device)
             

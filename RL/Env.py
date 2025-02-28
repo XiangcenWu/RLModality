@@ -41,7 +41,7 @@ class Env():
         
         self.current_accuracy = 0.
         self.last_current_accuracy = 0.
-
+##########################
     @property
     def all_zero(self):
         return all(num == 0 for num in (self.mean_dice, self.worst_dice, self.best_dice))
@@ -51,7 +51,7 @@ class Env():
             output = seg_model(input_tensor.unsqueeze(0))
             output = post_process(output).squeeze(0)
         return output
-
+###########################
 
 
     def reset(self):
@@ -71,10 +71,10 @@ class Env():
         self.last_current_accuracy = self.current_accuracy
         
         
-        if reward > 0:
-            reward = 1.
-        else:
-            reward = 0.
+        # if reward > 0:
+        #     reward = 1.
+        # else:
+        #     reward = 0.
         
 
         obs = torch.cat([
@@ -96,7 +96,7 @@ class Env():
         elif action > 7 and action <= 15: # t2
             d = self.index_32[action - 8]
             self.current_segmentation[:, :, :, d] = self.t2_seg[:, :, :, d]
-        elif action > 15 and action <= 23: # t2: # hb
+        elif action > 15 and action <= 23: # hb
             d = self.index_32[action - 16]
             self.current_segmentation[:, :, :, d] = self.hb_seg[:, :, :, d]
         else: # nothing
@@ -118,7 +118,7 @@ class Env():
         hb = dice_coefficient(self.hb_seg, self.gt, post=False).item()
         
         
-        return both, t2, hb
+        return t2, hb, both
     
     def get_best_accuracy(self):
         both, t2, hb = self.get_all_accuracy()

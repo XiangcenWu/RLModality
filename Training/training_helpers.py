@@ -85,6 +85,9 @@ def test_seg_net(
     loss_both = 0.
     loss_t2 = 0.
     loss_hb = 0.
+    
+    
+    
     for batch in seg_loader:
         label = batch["gt"].to(device)
         both = get_both(batch).to(device)
@@ -103,130 +106,47 @@ def test_seg_net(
 
 
         step_e += 1
+
     return loss_both / step_e, loss_t2 / step_e, loss_hb / step_e
 
 
 
 
-
-# def reward_model_loss(good, bad):
-#     difference = torch.sigmoid(good - bad)
-#     return torch.log(difference).mean()
-
-
-
-# def sort_state_accuracy(state_list, accuracy_list):
-#         # Combine the lists into pairs
-#     paired_list = zip(state_list, accuracy_list)
-#     ranked_list = sorted(paired_list, key=lambda x: x[1], reverse=True)
-#     return ranked_list # a list of tuple
-
-
-# def get_rm_list(state_list, accuracy_list):
-#     ranked_list = sort_state_accuracy(state_list, accuracy_list) # a list of tuple [(state, accuracy), ...]
-#     all_combinations = list(combinations(ranked_list, r=2)) #[((state, accuracy), (state, accuracy))
-#                                                             #                                      ]
+def test_seg_net_ver2(
+        seg_model, 
+        seg_loader,
+        device='cpu',
+    ):
+    seg_model.eval()
+    seg_model.to(device)
     
     
-#     return [state[0][0] for state in all_combinations], \
-#         [state[1][0] for state in all_combinations]
-
-
-
-# def generate_rm_data(patient_dir_list, sample_per_patient, loop_per_patient, seg_model, eps_length=999):
+    step_e = 0.
+    loss_both = 0.
+    loss_t2 = 0.
+    loss_hb = 0.
     
-#     good_list, bad_list = [], []
-#     for patient in patient_dir_list:
-#         state_list, accuracy_list = [], []
-#         env = RL.Env.Env(patient, seg_model, eps_length)
-#         for _ in range(sample_per_patient):
-#             state, accuracy = env.get_rand_state_accuracy(loop_per_patient)
-#             if accuracy not in accuracy_list:
-#                 state_list.append(state)
-#                 accuracy_list.append(accuracy_list)
-        
-#         _good_list, _bad_list = get_rm_list(state_list, accuracy_list)
-#         good_list += _good_list
-#         bad_list += _bad_list
-        
-#     return torch.stack(good_list), torch.stack(bad_list)
-
-
-
-# def train_reward_model(
-#     reward_model,
-#     segmentation_model,
-#     train_loader,
-#     reward_model_optimizer,
-#     sample_per_patient = 4,
-#     loop_per_patient = 20,
-#     device='cpu',
-# ):
-#     reward_model.train()
-#     reward_model.to(device)
-
     
-#     _loss = 0
-#     _step = 0
-#     for batch in train_loader:
-#         good_tensor, bad_tensor = generate_rm_data(
-#             batch,
-#             sample_per_patient,
-#             loop_per_patient,
-#             segmentation_model,
-#         )
-#         o_good = reward_model(good_tensor)
-#         o_bad = reward_model(bad_tensor)
-
-#         loss = reward_model_loss(o_good, o_bad)
-#         loss.backward()
-#         reward_model_optimizer.step()
-#         reward_model_optimizer.zero_grad()
-        
-#         _loss += loss.item()
-#         _step += 1
-#     return _loss/_step
-
-
-
-
-
-# def test_reward_model(
-#     reward_model,
-#     seg_model, 
-#     weak_loader,
-#     device='cpu',
-# ):
-#     reward_model.eval()
-#     reward_model.to(device)
-#     seg_model.eval()
-#     seg_model.to(device)
-    
-#     step = 0.
-#     difference_a = 0.
-#     for _ in range(30):
-#         for batch in weak_loader:
-#             # random generate index and mask the index
-#             index_to_mask = generate_rand_index()
-#             label = batch['gt'].to(device)
-#             label[..., index_to_mask] = 0
+    t2_list, hb_list, both_list = [], [], []
+    for batch in seg_loader:
+        label = batch["gt"].to(device)
+        both = get_both(batch).to(device)
+        t2 = get_t2(batch).to(device)
+        hb = get_hb(batch).to(device)
+        with torch.no_grad():
+            output = seg_model(both)
+            both_list.append(dice_coefficient(output, label, post=True).item())
             
-            
-            
-#             with torch.no_grad():
-#                 selected_function = random.choice(functions)
-#                 selected_modality = selected_function(batch).to(device)
-#                 output = seg_model(selected_modality)
-#                 output[..., index_to_mask] = 0 # mask the output as well
-#                 dice_score = dice_coef_batch(output, label).to(device)
-                
-#                 both = get_both(batch).to(device)
-#                 img = torch.cat([both, output], dim=1).to(device)
+            output = seg_model(t2)
+            t2_list.append(dice_coefficient(output, label, post=True).item())
 
-#                 output = reward_model(img)
-#                 difference_a += torch.abs(output - dice_score).mean().item()
-
-#             step+=1
-#     return difference_a / step
+            output = seg_model(hb)
+            hb_list.append(dice_coefficient(output, label, post=True).item())
 
 
+
+        
+    _t2 = torch.tensor(t2_list)
+    _hb = torch.tensor(hb_list)
+    _both = torch.tensor(both_list)
+    print(_t2.mean(), _t2.std(), _hb.mean(), _hb.std(), _both.mean(), _both.std())

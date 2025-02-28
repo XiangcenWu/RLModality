@@ -73,5 +73,4 @@ class vit_classifier(nn.Module):
 #     y = model(x)
     
 #     print(y.shape)
-    
-    
+

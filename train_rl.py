@@ -39,24 +39,25 @@ seg_model.eval()
 
 
 
+
+
 step_per_patient = 60
-batch_size = 10
-n_epochs = 5
+batch_size = 2
+n_epochs = 2
 
 
 
 
-agent = Agent(gamma = 0., batch_size=batch_size, n_epochs=n_epochs, device=device)
+agent = Agent(gamma = 0.5, batch_size=batch_size, n_epochs=n_epochs, device=device)
 actor_optimizer = torch.optim.AdamW(agent.actor.parameters(), lr=0.0001)
 test_result_list = []
 
-train_list = rl_list
-# train_list = ['./picai_h5/3.h5']
 
 
 
 for epoch in range(99999999): # loop over dataset (patients)
-    for train_dir in train_list:
+    random.shuffle(rl_list)
+    for train_dir in rl_list:
         env = Env(train_dir, seg_model)
         if env.all_zero:
             continue
@@ -84,9 +85,9 @@ for epoch in range(99999999): # loop over dataset (patients)
         #     # torch.save(torch.stack(test_result_list), '/home/xiangcen/RLModality/models/loss/agent_test.pt')
     
     
-    if (epoch + 1) % 50 == 0:
+    if (epoch + 1) % 25 == 0:
         agent.save_models(
-            f'/home/xiangcen/RLModality/models/rl_models/actor{epoch}.ptm'
+            f'/home/xiangcen/RLModality/models/rl_models_0.5_gamma_no_normalize/actor{epoch}.ptm'
         )
 
 
